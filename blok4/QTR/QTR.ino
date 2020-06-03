@@ -88,9 +88,9 @@ void setup()
 //////////////////////////////////////
 void loop()
 { 
-  int goedgekeurd = 0; // wanneer het potje in het midden van de qtr sensor staat wordt dit veranderdt naar 1 en gaat hij door;
+  int goedgekeurd = 1; // wanneer het potje in het midden van de qtr sensor staat wordt dit veranderdt naar 1 en gaat hij door;
 
-  while(goedgekeurd = 0){
+  while(goedgekeurd = 1){
     
  
   // read calibrated sensor values and obtain a measure of the line position
@@ -108,29 +108,24 @@ void loop()
   Serial.println(position);
 
 // hier proberen we de agv voor de qtr sensor te centreren. Misschien kunnen we hier een apparte functie voor maken.
-  if (sensorValues[1] <= 800){
+  if (sensorValues[0] <= 800){
    // Drive.motor.agv(speed);
     delay(20);
     //Drive.motor.agv(0);
   }
   
-   if (sensorValues[2] <= 800){
+   if (sensorValues[1] <= 800){
    // Drive.motor.agv(speed);
     delay(20);
    // Drive.motor.agv(0);
   }
 
-   if (sensorValues[3] <= 800){
-
-    //Drive.motor.agv(speed);
-    delay(20);
-   // Drive.motor.agv(0);
-  }
-  
-  if ((sensorValues[4] <= 800) & (sensorValues[5]<= 800)){
+  if ((sensorValues[2] <= 800)&(sensorValues[3] <= 400)&(sensorValues[4] <= 400)&(sensorValues[5] <= 800)){
 
   // Maak geluideje met de pieper
+  digitalWrite(LED_BUILTIN, HIGH);
   delay(2000);
+  digitalWrite(LED_BUILTIN, LOW);
   goedgekeurd = 1;
   }
   
@@ -140,15 +135,8 @@ void loop()
     delay(20);
     //Drive.motor.agv(0);
   }
-  
-   if (sensorValues[7] <= 800){
 
-    //Drive.motor.agv(-speed);
-    delay(20);
-    //Drive.motor.agv(0);
-  }
-
-  if (sensorValues[8] <= 800){
+  if (sensorValues[7] <= 800){
 
     //Drive.motor.agv(-speed);
     delay(20);
