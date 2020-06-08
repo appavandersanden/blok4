@@ -8,6 +8,14 @@
 #define userpushbuton 12
 #define LED 13
 
+/* SDA op SDA pin, SCL op SCL pin
+ * buzzer pin 3, pushbutton pin 12, gele led pin 13
+ * 3 way-switch pin A0, A1
+ * PIN 7,8,9,10 voor motoren
+ * QTR, PIN 4,5,6,11
+ */
+
+
 QTRSensors qtr;
 const uint8_t SensorCount = 8;// aantal sensoren op de qtr
 uint16_t sensorValues[SensorCount];
@@ -181,7 +189,7 @@ void loop() {
 
   if (uitvoerfunctie = 1) {
     Serial.print("Distance: ");
-    Serial.print(distance);
+    Serial.print(distanceTOF);
     Serial.print("mm");
     if (TOF.timeoutOccurred()) {
       Serial.print(" TIMEOUT");
