@@ -1,6 +1,7 @@
 #include <QTRSensors.h>
 #include <Wire.h>
-#include <VL53L0X.h>
+#include <ZumoShield.h>
+#include "Adafruit_VL53L0X.h"
 
 #define volgen A0
 #define zelf A1
@@ -8,6 +9,25 @@
 #define userpushbuton 12
 #define LED 13
 
+// address we will assign if dual sensor is present
+#define LOX1_ADDRESS 0x30
+#define LOX2_ADDRESS 0x31
+
+// set the pins to shutdown
+#define SHT_LOX1 A2 //hier nog de juiste pin
+#define SHT_LOX2 A3 //idem dito
+
+// objects for the vl53l0x
+Adafruit_VL53L0X lox1 = Adafruit_VL53L0X();
+Adafruit_VL53L0X lox2 = Adafruit_VL53L0X();
+
+// this holds the measurement
+VL53L0X_RangingMeasurementData_t measure1;
+VL53L0X_RangingMeasurementData_t measure2;
+
+Pushbutton button(ZUMO_BUTTON);
+//button.waitForButton()
+ZumoMotors motors;
 /* SDA op SDA pin, SCL op SCL pin
  * buzzer pin 3, pushbutton pin 12, gele led pin 13
  * 3 way-switch pin A0, A1
@@ -20,7 +40,67 @@ QTRSensors qtr;
 const uint8_t SensorCount = 8;// aantal sensoren op de qtr
 uint16_t sensorValues[SensorCount];
 
-VL53L0X TOF;
+int read_dual_sensors(void) {
+  int hummer;
+  
+  lox1.rangingTest(&measure1, false); // pass in 'true' to get debug data printout!
+  lox2.rangingTest(&measure2, false); // pass in 'true' to get debug data printout!
+
+  // print sensor one reading
+  Serial.print("1: ");
+  if(measure1.RangeStatus != 4) {     // if not out of range
+    Serial.print(measure1.RangeMilliMeter);
+  hummer = measure1.RangeMilliMeter;
+  Serial.println("joe");
+  Serial.println(hummer);
+  } else {
+    Serial.print("Out of range");
+  }
+  
+  Serial.print(" ");
+
+  // print sensor two reading
+  Serial.print("2: ");
+  if(measure2.RangeStatus != 4) {
+    Serial.print(measure2.RangeMilliMeter);
+  } else {
+    Serial.print("Out of range");
+  }
+  Serial.println();
+  return(hummer);
+}
+
+void setID() {
+  // all reset
+  digitalWrite(SHT_LOX1, LOW);    
+  digitalWrite(SHT_LOX2, LOW);
+  delay(10);
+  // all unreset
+  digitalWrite(SHT_LOX1, HIGH);
+  digitalWrite(SHT_LOX2, HIGH);
+  delay(10);
+
+  // activating LOX1 and reseting LOX2
+  digitalWrite(SHT_LOX1, HIGH);
+  digitalWrite(SHT_LOX2, LOW);
+
+  // initing LOX1
+  if(!lox1.begin(LOX1_ADDRESS)) {
+    Serial.println(F("Failed to boot first VL53L0X"));
+    while(1);
+  }
+  delay(10);
+
+  // activating LOX2
+  digitalWrite(SHT_LOX2, HIGH);
+  delay(10);
+
+  //initing LOX2
+  if(!lox2.begin(LOX2_ADDRESS)) {
+    Serial.println(F("Failed to boot second VL53L0X"));
+    while(1);
+  }
+}
 
 int uitvoerFunctieChecken(void) {
   int uitvoerfunctie;
@@ -45,20 +125,6 @@ void calibrerenQTR(void) {
 
   // led later knipperen zodat iedereen weet dat er gecalibreert meot worden
   // knop 12 indrukken zodat hij doorgaat.
-  while (waarde == HIGH) {
-    i++;
-
-    waarde = digitalRead(userpushbuton);
-
-    if (i == 50000) {
-      digitalWrite(LED, HIGH);
-    }
-
-    if (i == 10000) {
-      digitalWrite(LED, LOW);
-      i = 0;
-    }
-  }
 
   delay(2000);
   digitalWrite(LED, HIGH);
@@ -111,22 +177,27 @@ void AGVcentreren(void) {
     Serial.println(position);
 
     // hier proberen we de agv voor de qtr sensor te centreren.
-    if (sensorValues[0] <= 800) {
-      // Drive.motor.agv(speed);
+    if (sensorValues[0] <= 800)
+      motors.setLeftSpeed(100);
+      motors.setRightSpeed(100);
       delay(20);
-      //Drive.motor.agv(0);
+      motors.setLeftSpeed(0);
+      motors.setRightSpeed(0);
     }
 
     if (sensorValues[1] <= 800) {
-      // Drive.motor.agv(speed);
+      motors.setLeftSpeed(100);
+      motors.setRightSpeed(100);
       delay(20);
-      // Drive.motor.agv(0);
+      motors.setLeftSpeed(0);
+      motors.setRightSpeed(0);
     }
 
-    if ((sensorValues[2] <= 800) & (sensorValues[3] <= 400) & (sensorValues[4] <= 400) & (sensorValues[5] <= 800)) {
+    if ((sensorValues[0] <= 800) & (sensorValues[1] <= 400) & (sensorValues[2] <= 400) & (sensorValues[3] <= 800)) {
+      motors.setLeftSpeed(0);
+      motors.setRightSpeed(0);
       delay(20);
-      if ((sensorValues[2] <= 800) & (sensorValues[3] <= 400) & (sensorValues[4] <= 400) & (sensorValues[5] <= 800)) {
-        // Drive.motor.agv(0);
+      if ((sensorValues[0] <= 800) & (sensorValues[1] <= 400) & (sensorValues[2] <= 400) & (sensorValues[3] <= 800)) {
         // Maak geluideje met de pieper
         digitalWrite(LED_BUILTIN, HIGH);
         delay(1000);
@@ -134,22 +205,24 @@ void AGVcentreren(void) {
         goedgekeurd = 1;
       }
     }
-    if (sensorValues[6] <= 800) {
+    if (sensorValues[2] <= 800) {
 
-      //Drive.motor.agv(-speed);
+      motors.setLeftSpeed(-100);
+      motors.setRightSpeed(-100);
       delay(20);
-      //Drive.motor.agv(0);
+      motors.setLeftSpeed(0);
+      motors.setRightSpeed(0);
     }
 
-    if (sensorValues[7] <= 800) {
+    if (sensorValues[3] <= 800) {
 
-      //Drive.motor.agv(-speed);
+      motors.setLeftSpeed(-100);
+      motors.setRightSpeed(-100);
       delay(20);
-      //Drive.motor.agv(0);
+      motors.setLeftSpeed(0);
+      motors.setRightSpeed(0);
     }
-
-  }
-
+  
 }
 
 
@@ -163,20 +236,21 @@ void setup() {
   pinMode(userpushbuton, INPUT);
   pinMode(LED, OUTPUT);
   pinMode(buzzer, OUTPUT);
+  pinMode(SHT_LOX1, OUTPUT);
+  pinMode(SHT_LOX2, OUTPUT);
+  digitalWrite(SHT_LOX1, LOW);
+  digitalWrite(SHT_LOX2, LOW);
+  setID();
 
   // configure the QTR sensors
   qtr.setTypeRC();
-  qtr.setSensorPins((const uint8_t[]) {
-    3, 4, 5, 6, 7, 8, 9, 10
-  }, SensorCount);
+  qtr.setSensorPins((const uint8_t[]) {4,5,6,11}, 4);
   qtr.setEmitterPin(2);
 
-  TOF.init();
-  TOF.setTimeout(500);
-  TOF.startContinuous();
-
+  digitalWrite(LED, HIGH);
+  button.waitForButton();
   Serial.println("QTR calibreren....");
-  calibrerenQTR();
+  //calibrerenQTR();
   Serial.println("QTR gecalibreerd");
 }
 
@@ -185,17 +259,11 @@ void setup() {
 void loop() {
 
   int uitvoerfunctie = uitvoerFunctieChecken(); // volgen = 1, zelf rijden =2
-  int distanceTOF = TOF.readRangeContinuousMillimeters();
-
-  if (uitvoerfunctie = 1) {
-    Serial.print("Distance: ");
-    Serial.print(distanceTOF);
-    Serial.print("mm");
-    if (TOF.timeoutOccurred()) {
-      Serial.print(" TIMEOUT");
-    }
-  }
-
+  //if(uitvoerfunctie = 1)
+  int uitvoer =read_dual_sensors(); //lees waardes TOF
+  Serial.println("dit is in loop");
+  Serial.print(uitvoer);
+  
  if (uitvoerfunctie = 2) {
   AGVcentreren();
  }
